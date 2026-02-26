@@ -20,19 +20,24 @@ import (
 	"os"
 	"simulcrum/internal/logger"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 )
 
 type Server struct {
-	addr      string
-	defaultIP net.IP
-	dnsServer *dns.Server
+	addr          string
+	defaultIP     net.IP
+	dnsServer     *dns.Server
+	upstreamDNS   string
+	checkLiveness bool
 }
 
 type Config struct {
-	ListenAddr string
-	DefaultIP  string // IP returned for all queries
+	ListenAddr    string
+	DefaultIP     string // IP returned for all queries
+	UpstreamDNS   string // DNS server to forward queries
+	CheckLiveness bool   // use upstream DNS to test server liveness
 }
 
 func New(cfg Config) (*Server, error) {
@@ -40,10 +45,19 @@ func New(cfg Config) (*Server, error) {
 	if ip == nil {
 		return nil, fmt.Errorf("invalid default IP address: %s", cfg.DefaultIP)
 	}
-	return &Server{
-		addr:      cfg.ListenAddr,
-		defaultIP: ip,
-	}, nil
+	server := &Server{
+		addr:          cfg.ListenAddr,
+		defaultIP:     ip,
+		upstreamDNS:   cfg.UpstreamDNS,
+		checkLiveness: cfg.CheckLiveness,
+	}
+
+	// validate upstream DNS if liveness check is enabled
+	if server.checkLiveness && server.upstreamDNS == "" {
+		return nil, fmt.Errorf("upstream DNS required for liveness check")
+	}
+
+	return server, nil
 }
 
 func (s *Server) Start() error {
@@ -67,17 +81,76 @@ func (s *Server) Stop() error {
 	return nil
 }
 
+func (s *Server) checkDomain(domain string, qtype uint16) bool {
+	if !s.checkLiveness {
+		return true // always return success if upstream checking is disabled
+	}
+
+	c := new(dns.Client)
+	c.Timeout = 2 * time.Second
+
+	m := new(dns.Msg)
+	m.SetQuestion(domain, qtype)
+	m.RecursionDesired = true
+
+	r, _, err := c.Exchange(m, s.upstreamDNS)
+	if err != nil {
+		logger.Warn("upstream DNS check failed",
+			"domain", domain,
+			"error", err,
+			"type", dns.TypeToString[qtype])
+		return true // fail open if upstream check fails
+	}
+
+	// check response code
+	switch r.Rcode {
+	case dns.RcodeSuccess:
+		logger.Info("upstream DNS check succeeded",
+			"domain", domain,
+			"type", dns.TypeToString[qtype],
+		)
+		return true
+	case dns.RcodeNameError: // NXDOMAIN
+		logger.Info("upstream DNS check failed",
+			"domain", domain,
+			"error", "NXDOMAIN",
+		)
+		return false
+	default:
+		logger.Warn("upstream DNS check failed",
+			"domain", domain,
+			"rcode", dns.RcodeToString[r.Rcode],
+		)
+		return true // fail open
+	}
+}
+
 func (s *Server) handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	msg := new(dns.Msg)
 	msg.SetReply(r)
 	msg.Authoritative = true
 
 	for _, question := range r.Question {
+		domain := strings.TrimSuffix(question.Name, ".")
+
 		logger.Info("dns query",
-			"domain", strings.TrimSuffix(question.Name, "."),
+			"domain", domain,
 			"type", dns.TypeToString[question.Qtype],
 			"client", w.RemoteAddr().String(),
 		)
+
+		// check upstream DNS for domain if liveness check is enabled
+		if !s.checkDomain(question.Name, question.Qtype) {
+			// return NXDOMAIN if upstream check fails
+			msg.SetRcode(r, dns.RcodeNameError)
+			logger.Info("returning NXDOMAIN for non-existent domain", "domain", domain)
+
+			if err := w.WriteMsg(msg); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to write DNS response: %v\n", err)
+			}
+
+			return
+		}
 
 		switch question.Qtype {
 		case dns.TypeA:

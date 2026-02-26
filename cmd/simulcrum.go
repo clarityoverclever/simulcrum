@@ -62,8 +62,10 @@ func run(cfg *config.Config, quit <-chan os.Signal) error {
 
 	// service initialization
 	dnsServer, err := dns.New(dns.Config{
-		ListenAddr: cfg.DNS.ListenAddr,
-		DefaultIP:  cfg.DNS.DefaultIP,
+		ListenAddr:    cfg.DNS.ListenAddr,
+		DefaultIP:     cfg.DNS.DefaultIP,
+		UpstreamDNS:   cfg.DNS.UpstreamDNS,
+		CheckLiveness: cfg.DNS.CheckLiveness,
 	})
 
 	if err != nil {
