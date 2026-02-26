@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"simulcrum/internal/config"
 	"simulcrum/internal/dns"
 	"simulcrum/internal/logger"
 	"syscall"
@@ -27,6 +28,13 @@ import (
 func init() {}
 
 func main() {
+	// init config
+	cfg, err := config.Load("./config/config.yaml")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "---CONFIG LOAD FAILURE---: %v\n", err)
+		os.Exit(1)
+	}
+
 	// init logger
 	if err := logger.Init(slog.LevelInfo, "./var/log/simulcrum/simulcrum.log"); err != nil {
 		fmt.Fprintf(os.Stderr, "---LOGGER INIT FAILURE---: %v\n", err)
@@ -40,7 +48,7 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	// abstract main into run to maintain logging while processing termination signals
-	if err := run(quit); err != nil {
+	if err := run(cfg, quit); err != nil {
 		fmt.Fprintf(os.Stderr, "---MAIN FAILURE---: %v\n", err)
 		os.Exit(1)
 	}
@@ -49,13 +57,13 @@ func main() {
 }
 
 // main application logic
-func run(quit <-chan os.Signal) error {
+func run(cfg *config.Config, quit <-chan os.Signal) error {
 	fmt.Println("running")
 
 	// service initialization
 	dnsServer, err := dns.New(dns.Config{
-		ListenAddr: "0.0.0.0:5053",
-		DefaultIP:  "127.0.0.1",
+		ListenAddr: cfg.DNS.ListenAddr,
+		DefaultIP:  cfg.DNS.DefaultIP,
 	})
 
 	if err != nil {
