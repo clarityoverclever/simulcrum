@@ -18,8 +18,11 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"simulcrum/internal/dnat"
+	"simulcrum/internal/ippool"
 	"simulcrum/internal/logger"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -27,29 +30,52 @@ import (
 
 type Server struct {
 	addr          string
-	defaultIP     net.IP
+	analysisIP    net.IP
 	dnsServer     *dns.Server
-	upstreamDNS   string
 	checkLiveness bool
+	upstreamDNS   string
+	SpoofNetwork  bool
+	ipPool        *ippool.Pool
+	dnatManager   *dnat.Manager
+	dnatMap       map[string]string // domain -> spoofed IP
+	dnatLock      sync.RWMutex
 }
 
 type Config struct {
+	Enabled       bool
 	ListenAddr    string
-	DefaultIP     string // IP returned for all queries
-	UpstreamDNS   string // DNS server to forward queries
+	AnalysisIP    string // IP returned for all queries
 	CheckLiveness bool   // use upstream DNS to test server liveness
+	UpstreamDNS   string // DNS server to forward queries
+	SpoofNetwork  bool
+	DefaultSubnet string
 }
 
 func New(cfg Config) (*Server, error) {
-	ip := net.ParseIP(cfg.DefaultIP)
+	ip := net.ParseIP(cfg.AnalysisIP)
 	if ip == nil {
-		return nil, fmt.Errorf("invalid default IP address: %s", cfg.DefaultIP)
+		return nil, fmt.Errorf("invalid analysis IP address: %s", cfg.AnalysisIP)
 	}
+
+	var pool *ippool.Pool
+
+	if cfg.SpoofNetwork {
+		var err error
+		pool, err = ippool.New(cfg.DefaultSubnet)
+		if err != nil {
+			return nil, fmt.Errorf("invalid default subnet: %w", err)
+		}
+	}
+
 	server := &Server{
 		addr:          cfg.ListenAddr,
-		defaultIP:     ip,
-		upstreamDNS:   cfg.UpstreamDNS,
+		analysisIP:    ip,
 		checkLiveness: cfg.CheckLiveness,
+		upstreamDNS:   cfg.UpstreamDNS,
+		SpoofNetwork:  cfg.SpoofNetwork,
+		ipPool:        pool,
+		dnatManager:   dnat.New(cfg.AnalysisIP),
+		dnatMap:       make(map[string]string),
 	}
 
 	// validate upstream DNS if liveness check is enabled
@@ -65,7 +91,7 @@ func (s *Server) Start() error {
 
 	s.dnsServer = &dns.Server{Addr: s.addr, Net: "udp"}
 
-	fmt.Fprintf(os.Stdout, "Starting DNS server on %s\n", s.addr)
+	fmt.Fprintf(os.Stdout, "DNS listening on: %s\n", s.addr)
 
 	if err := s.dnsServer.ListenAndServe(); err != nil {
 		return fmt.Errorf("failed to start DNS server: %w", err)
@@ -76,14 +102,29 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	if s.dnsServer != nil {
 		fmt.Println("stopping DNS server")
+
+		// Clean up all DNAT rules
+		s.dnatLock.Lock()
+		for domain, spoofedIP := range s.dnatMap {
+			if err := s.dnatManager.RemoveDNAT(spoofedIP); err != nil {
+				logger.Error("failed to remove DNAT", "domain", domain, "error", err)
+			}
+		}
+		s.dnatLock.Unlock()
+
+		// Clear IP pool
+		if s.ipPool != nil {
+			s.ipPool.Clear()
+		}
+
 		return s.dnsServer.Shutdown()
 	}
 	return nil
 }
 
-func (s *Server) checkDomain(domain string, qtype uint16) bool {
+func (s *Server) resolveUpstream(domain string, qtype uint16) (bool, net.IP) {
 	if !s.checkLiveness {
-		return true // always return success if upstream checking is disabled
+		return true, nil // always return success if upstream checking is disabled
 	}
 
 	c := new(dns.Client)
@@ -99,33 +140,44 @@ func (s *Server) checkDomain(domain string, qtype uint16) bool {
 			"domain", domain,
 			"error", err,
 			"type", dns.TypeToString[qtype])
-		return true // fail open if upstream check fails
+		return true, nil // fail open if upstream check fails
 	}
 
 	// check response code
 	switch r.Rcode {
 	case dns.RcodeSuccess:
+		var upstreamIP net.IP
+		if qtype == dns.TypeA {
+			for _, ans := range r.Answer {
+				if a, ok := ans.(*dns.A); ok {
+					upstreamIP = a.A
+					break
+				}
+			}
+		}
 		logger.Info("upstream DNS check succeeded",
 			"domain", domain,
 			"type", dns.TypeToString[qtype],
+			"upstream_ip", upstreamIP,
 		)
-		return true
+		return true, upstreamIP
 	case dns.RcodeNameError: // NXDOMAIN
 		logger.Info("upstream DNS check failed",
 			"domain", domain,
 			"error", "NXDOMAIN",
 		)
-		return false
+		return false, nil
 	default:
 		logger.Warn("upstream DNS check failed",
 			"domain", domain,
 			"rcode", dns.RcodeToString[r.Rcode],
 		)
-		return true // fail open
+		return true, nil // fail open
 	}
 }
 
 func (s *Server) handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
+	var err error
 	msg := new(dns.Msg)
 	msg.SetReply(r)
 	msg.Authoritative = true
@@ -140,16 +192,47 @@ func (s *Server) handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 		)
 
 		// check upstream DNS for domain if liveness check is enabled
-		if !s.checkDomain(question.Name, question.Qtype) {
+		exists, upstreamIP := s.resolveUpstream(question.Name, question.Qtype)
+
+		if !exists {
 			// return NXDOMAIN if upstream check fails
 			msg.SetRcode(r, dns.RcodeNameError)
 			logger.Info("returning NXDOMAIN for non-existent domain", "domain", domain)
 
-			if err := w.WriteMsg(msg); err != nil {
+			if err = w.WriteMsg(msg); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to write DNS response: %v\n", err)
 			}
 
 			return
+		}
+
+		var responseIP net.IP
+
+		if s.SpoofNetwork && question.Qtype == dns.TypeA {
+			if upstreamIP != nil {
+				// spoof network if upstream IP is available
+				responseIP = upstreamIP
+			} else {
+				// use default subnet if upstream IP is not available
+				responseIP, err = s.ipPool.Allocate()
+				if err != nil {
+					logger.Error("failed to allocate IP from pool", "error", err)
+					responseIP = s.analysisIP
+				}
+			}
+
+			// add DNAT rule
+			if err := s.dnatManager.AddDNAT(responseIP.String()); err != nil {
+				logger.Error("failed to add DNAT", "error", err)
+				// Fall back to analysis IP
+				responseIP = s.analysisIP
+			} else {
+				// Track mapping for cleanup
+				s.dnatMap[domain] = responseIP.String()
+			}
+		} else {
+			// return analysis IP as fallback
+			responseIP = s.analysisIP
 		}
 
 		switch question.Qtype {
@@ -161,8 +244,14 @@ func (s *Server) handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 					Class:  dns.ClassINET,
 					Ttl:    30,
 				},
-				A: s.defaultIP,
+				A: responseIP,
 			})
+
+			logger.Info("dns response",
+				"domain", domain,
+				"returned_ip", responseIP.String(),
+				"spoofed", s.SpoofNetwork,
+			)
 		case dns.TypeAAAA:
 			logger.Info("ignoring AAAA query", "domain", question.Name)
 		case dns.TypeMX, dns.TypeNS, dns.TypeCNAME, dns.TypeTXT:

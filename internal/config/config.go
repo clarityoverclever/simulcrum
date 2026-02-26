@@ -22,10 +22,13 @@ import (
 )
 
 type DnsConfig struct {
+	Enabled       bool   `yaml:"enabled"`
 	ListenAddr    string `yaml:"listen_addr"`
-	DefaultIP     string `yaml:"default_ip"`
-	UpstreamDNS   string `yaml:"upstream_dns"`
+	AnalysisIP    string `yaml:"analysis_ip"`
 	CheckLiveness bool   `yaml:"check_liveness"`
+	UpstreamDNS   string `yaml:"upstream_dns"`
+	SpoofNetwork  bool   `yaml:"spoof_network"`
+	DefaultSubnet string `yaml:"default_subnet"`
 }
 type Config struct {
 	DNS DnsConfig `yaml:"dns"`

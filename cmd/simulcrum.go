@@ -41,7 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("starting simulcrum", "version", "0.0.1")
+	fmt.Println("starting simulcrum", "version", "0.1.0")
 
 	// capture and process terminating signals
 	quit := make(chan os.Signal, 1)
@@ -58,36 +58,43 @@ func main() {
 
 // main application logic
 func run(cfg *config.Config, quit <-chan os.Signal) error {
-	fmt.Println("running")
-
 	// service initialization
-	dnsServer, err := dns.New(dns.Config{
-		ListenAddr:    cfg.DNS.ListenAddr,
-		DefaultIP:     cfg.DNS.DefaultIP,
-		UpstreamDNS:   cfg.DNS.UpstreamDNS,
-		CheckLiveness: cfg.DNS.CheckLiveness,
-	})
+	if cfg.DNS.Enabled {
+		fmt.Println("starting DNS server")
 
-	if err != nil {
-		return fmt.Errorf("failed to initialize DNS server: %w", err)
-	}
+		dnsServer, err := dns.New(dns.Config{
+			Enabled:       cfg.DNS.Enabled,
+			ListenAddr:    cfg.DNS.ListenAddr,
+			AnalysisIP:    cfg.DNS.AnalysisIP,
+			CheckLiveness: cfg.DNS.CheckLiveness,
+			UpstreamDNS:   cfg.DNS.UpstreamDNS,
+			SpoofNetwork:  cfg.DNS.SpoofNetwork,
+			DefaultSubnet: cfg.DNS.DefaultSubnet,
+		})
 
-	// start services
-	errChan := make(chan error, 1)
-	go func() {
-		if err := dnsServer.Start(); err != nil {
-			errChan <- fmt.Errorf("failed to start DNS server: %w", err)
+		if err != nil {
+			return fmt.Errorf("failed to initialize DNS server: %w", err)
 		}
-	}()
 
-	select {
-	case err := <-errChan:
-		return fmt.Errorf("DNS server error: %w", err)
-	case <-quit:
-		fmt.Println("stopping services")
-		if err := dnsServer.Stop(); err != nil {
-			return fmt.Errorf("failed to stop DNS server: %w", err)
+		// start services
+		errChan := make(chan error, 1)
+		go func() {
+			if err = dnsServer.Start(); err != nil {
+				errChan <- fmt.Errorf("failed to start DNS server: %w", err)
+			}
+		}()
+
+		select {
+		case err = <-errChan:
+			return fmt.Errorf("DNS server error: %w", err)
+		case <-quit:
+			fmt.Println("stopping services")
+			if err = dnsServer.Stop(); err != nil {
+				return fmt.Errorf("failed to stop DNS server: %w", err)
+			}
 		}
+	} else {
+		fmt.Println("DNS server not configured")
 	}
 
 	return nil
