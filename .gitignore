@@ -36,6 +36,3 @@ Thumbs.db
 
 # logging dir
 /var
-
-# config
-/config/*
