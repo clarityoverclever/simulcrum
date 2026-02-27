@@ -30,6 +30,7 @@ simulcrum provides deterministic DNS behavior for analysis, testing, and control
 ---
 
 ## Configuration
+file: ./config/config.yaml
 
 ### dns
 - **enabled:** `true | false`  

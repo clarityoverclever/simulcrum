@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// init logger
-	if err := logger.Init(slog.LevelInfo, "./var/log/simulcrum/simulcrum.log"); err != nil {
+	if err := logger.Init(slog.LevelInfo, "./log/simulcrum.log"); err != nil {
 		fmt.Fprintf(os.Stderr, "---LOGGER INIT FAILURE---: %v\n", err)
 		os.Exit(1)
 	}
