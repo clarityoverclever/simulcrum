@@ -99,9 +99,10 @@ func run(cfg *config.Config, quit <-chan os.Signal) error {
 		fmt.Println("starting HTTP server")
 
 		httpServer, err = http.New(http.Config{
-			Enabled:     cfg.HTTP.Enabled,
-			BindAddress: cfg.HTTP.BindAddress,
-			LogHeaders:  cfg.HTTP.LogHeaders,
+			Enabled:      cfg.HTTP.Enabled,
+			BindAddress:  cfg.HTTP.BindAddress,
+			LogHeaders:   cfg.HTTP.LogHeaders,
+			SpoofPayload: cfg.HTTP.SpoofPayload,
 		})
 
 		go func() {

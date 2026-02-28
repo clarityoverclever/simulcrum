@@ -32,9 +32,10 @@ type DnsConfig struct {
 }
 
 type HttpConfig struct {
-	Enabled     bool   `yaml:"enabled"`
-	BindAddress string `yaml:"bind_addr"`
-	LogHeaders  bool   `yaml:"log_headers"`
+	Enabled      bool   `yaml:"enabled"`
+	BindAddress  string `yaml:"bind_addr"`
+	LogHeaders   bool   `yaml:"log_headers"`
+	SpoofPayload bool   `yaml:"spoof_payload"`
 }
 
 type Config struct {

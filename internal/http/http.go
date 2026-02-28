@@ -37,9 +37,10 @@ type Server struct {
 }
 
 type Config struct {
-	Enabled     bool
-	BindAddress string
-	LogHeaders  bool
+	Enabled      bool
+	BindAddress  string
+	LogHeaders   bool
+	SpoofPayload bool
 }
 
 var mimes = map[string]string{
@@ -76,14 +77,15 @@ func (s *Server) Start() error {
 func (s *Server) handleAll(w http.ResponseWriter, r *http.Request) {
 	s.logRequest(r)
 
-	leaf := r.PathValue("path")
+	if s.cfg.SpoofPayload {
+		leaf := r.PathValue("path")
+		ext := filepath.Ext(leaf) // extracts extension from the leaf path
 
-	ext := filepath.Ext(leaf) // extracts extension from the leaf path
-
-	val, ok := mimes[ext]
-	if ok {
-		s.serveFile(w, leaf, ext, val)
-		return
+		val, ok := mimes[ext]
+		if ok {
+			s.serveFile(w, leaf, ext, val)
+			return
+		}
 	}
 
 	// default serve a 200
@@ -116,7 +118,6 @@ func (s *Server) serveFile(w http.ResponseWriter, fileName string, fileType stri
 			return
 		}
 		w.Write(agent)
-
 	case ".dat": // binary data
 		w.Header().Set("Content-Type", contentType)
 
