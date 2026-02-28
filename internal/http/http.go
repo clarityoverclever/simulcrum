@@ -16,8 +16,12 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"math/rand"
 	"net/http"
+	"path/filepath"
 	"simulcrum/internal/logger"
 	"time"
 )
@@ -33,6 +37,13 @@ type Config struct {
 	LogHeaders  bool
 }
 
+var mimes = map[string]string{
+	".exe": "application/x-msdownload",
+	".dll": "application/x-msdownload",
+	".ps1": "text/plain",
+	".dat": "application/octet-stream",
+}
+
 func New(cfg Config) (*Server, error) {
 	return &Server{cfg: cfg}, nil
 }
@@ -40,40 +51,7 @@ func New(cfg Config) (*Server, error) {
 func (s *Server) Start() error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		clientIP := r.RemoteAddr
-		host := r.Host
-
-		s.logRequest(clientIP, host, r)
-
-		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <title>Simulcrum - DNAT Working</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; }
-        .info { background: #e8f4f8; padding: 15px; border-radius: 4px; margin: 10px 0; }
-        .success { color: #27ae60; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Simulcrum HTTP Server</h1>
-        <p class="success">DNAT is working!</p>
-        <div class="info">
-            <p><strong>Client IP:</strong> %s</p>
-            <p><strong>Requested Host:</strong> %s</p>
-            <p><strong>Path:</strong> %s</p>
-            <p><strong>Method:</strong> %s</p>
-        </div>
-        <p>If you're seeing this page, your DNS query was spoofed and the traffic was redirected via DNAT to this analysis server.</p>
-    </div>
-</body>
-</html>`, clientIP, host, r.URL.Path, r.Method)
-	})
+	mux.HandleFunc("/{path...}", s.handleAll)
 
 	s.Server = &http.Server{
 		Addr:         s.cfg.BindAddress,
@@ -83,21 +61,59 @@ func (s *Server) Start() error {
 	}
 
 	fmt.Println("Starting HTTP server on", s.cfg.BindAddress)
-	if err := s.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := s.Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
 	return nil
 }
 
-func (s *Server) logRequest(clientIP string, host string, r *http.Request) {
+func (s *Server) handleAll(w http.ResponseWriter, r *http.Request) {
+	s.logRequest(r)
+
+	leaf := r.PathValue("path")
+
+	ext := filepath.Ext(leaf) // extracts extension from the leaf path
+
+	val, ok := mimes[ext]
+	if ok {
+		s.serveFile(w, ext, val)
+		return
+	}
+
+	// default serve a 200
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("<!DOCTYPE html><html><head><title>Simulcrum</title></head><body><center><h1>OK</h1></center></body></html>"))
+}
+
+func (s *Server) serveFile(w http.ResponseWriter, fileType string, contentType string) {
+	logger.Info("Serving fake payload", "file_type", fileType)
+
+	switch fileType {
+	case ".exe", ".dll":
+		w.Header().Set("Content-Type", contentType)
+
+		// generate a fake payload with exe header
+		size := 1024*1024 + rand.Intn(4*1024*1024)
+		w.Write([]byte("MZ"))
+		size -= 2
+
+		io.CopyN(w, rand.New(rand.NewSource(time.Now().UnixNano())), int64(size))
+	default:
+		return
+	}
+}
+
+func (s *Server) logRequest(r *http.Request) {
 	logger.Info("HTTP request received",
-		"client", clientIP,
-		"host", host,
+		"client", r.RemoteAddr,
+		"host", r.Host,
 		"path", r.URL.Path,
+		"wildcard_path", r.PathValue("path"),
 		"method", r.Method,
 	)
-	
+
 	if !s.cfg.LogHeaders {
 		return
 	}

@@ -35,4 +35,5 @@ Thumbs.db
 .jj/
 
 # logging dir
-/log
+/log/*
+/config/*
