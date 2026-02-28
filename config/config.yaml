@@ -1,6 +1,6 @@
 dns:
   enabled: true
-  bind_addr: 0.0.0.0:5053
+  bind_addr: 0.0.0.0:53
   analysis_ip: 192.168.117.128
   check_liveness: true
   upstream_dns: 9.9.9.9:53
@@ -8,5 +8,5 @@ dns:
   default_subnet: 10.0.1.0/8
 http:
   enabled: true
-  bind_addr: 0.0.0.0:8080
+  bind_addr: 0.0.0.0:80
   log_headers: true

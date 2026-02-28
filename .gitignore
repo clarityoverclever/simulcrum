@@ -35,4 +35,4 @@ Thumbs.db
 .jj/
 
 # logging dir
-/var
+/log
