@@ -101,6 +101,7 @@ func run(cfg *config.Config, quit <-chan os.Signal) error {
 		httpServer, err = http.New(http.Config{
 			Enabled:     cfg.HTTP.Enabled,
 			BindAddress: cfg.HTTP.BindAddress,
+			LogHeaders:  cfg.HTTP.LogHeaders,
 		})
 
 		go func() {

@@ -60,7 +60,8 @@ file: ./config/config.yaml
 
 - **bind_addr:** `IP:PORT`  
   Address and port simulcrum binds to for serving HTTP traffic.
-- 
+- **log_headers:** `true | false`  
+  Enables logging of HTTP request headers.
 ### Example
 ```yaml
 dns:

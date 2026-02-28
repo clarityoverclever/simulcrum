@@ -30,6 +30,7 @@ type Server struct {
 type Config struct {
 	Enabled     bool
 	BindAddress string
+	LogHeaders  bool
 }
 
 func New(cfg Config) (*Server, error) {
@@ -43,12 +44,7 @@ func (s *Server) Start() error {
 		clientIP := r.RemoteAddr
 		host := r.Host
 
-		logger.Info("HTTP request received",
-			"client", clientIP,
-			"host", host,
-			"path", r.URL.Path,
-			"method", r.Method,
-		)
+		s.logRequest(clientIP, host, r)
 
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprintf(w, `<!DOCTYPE html>
@@ -92,6 +88,29 @@ func (s *Server) Start() error {
 	}
 
 	return nil
+}
+
+func (s *Server) logRequest(clientIP string, host string, r *http.Request) {
+	logger.Info("HTTP request received",
+		"client", clientIP,
+		"host", host,
+		"path", r.URL.Path,
+		"method", r.Method,
+	)
+	
+	if !s.cfg.LogHeaders {
+		return
+	}
+
+	// capture headers
+	for header, values := range r.Header {
+		for _, value := range values {
+			logger.Info("HTTP header captured",
+				"header", header,
+				"value", value,
+			)
+		}
+	}
 }
 
 func (s *Server) Stop() error {
