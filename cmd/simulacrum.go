@@ -16,12 +16,20 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
+	"simulacrum/internal/services/logger"
 	"syscall"
 )
 
 func main() {
+	// initialize logger
+	if err := logger.Init(slog.LevelInfo, "./logs/simulacrum.log"); err != nil {
+		fmt.Fprintf(os.Stderr, "--- LOGGER FAILURE --- : %v\n", err)
+		os.Exit(1)
+	}
+
 	fmt.Println("starting Simulacrum version: 0.0.1")
 
 	// capture and process terminating signals
