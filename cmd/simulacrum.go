@@ -19,14 +19,22 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"simulacrum/internal/services/config"
 	"simulacrum/internal/services/logger"
 	"syscall"
 )
 
 func main() {
+	// initialize configuration
+	cfg, err := config.Load("./config/config.yaml")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "--- CONFIG LOAD FAILURE --- : %v\n", err)
+		os.Exit(1)
+	}
+
 	// initialize logger
-	if err := logger.Init(slog.LevelInfo, "./logs/simulacrum.log"); err != nil {
-		fmt.Fprintf(os.Stderr, "--- LOGGER FAILURE --- : %v\n", err)
+	if err = logger.Init(slog.LevelInfo, "./logs/simulacrum.log"); err != nil {
+		fmt.Fprintf(os.Stderr, "--- LOGGER INIT FAILURE --- : %v\n", err)
 		os.Exit(1)
 	}
 
@@ -37,7 +45,7 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	// abstract main into run to maintain logging while processing termination signals
-	if err := run(quit); err != nil {
+	if err := run(cfg, quit); err != nil {
 		fmt.Fprintf(os.Stderr, "--- MAIN FAILURE --- : %v\n", err)
 		os.Exit(1)
 	}
@@ -45,7 +53,7 @@ func main() {
 	fmt.Println("Simulacrum stopped")
 }
 
-func run(quit <-chan os.Signal) error {
+func run(cfg *config.Config, quit <-chan os.Signal) error {
 	var err error
 	errChan := make(chan error, 1)
 
