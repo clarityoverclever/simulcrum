@@ -17,8 +17,10 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
+	"simulacrum/internal/core"
 	"simulacrum/internal/services/config"
 	"simulacrum/internal/services/logger"
 	"syscall"
@@ -56,6 +58,28 @@ func main() {
 func run(cfg *config.Config, quit <-chan os.Signal) error {
 	var err error
 	errChan := make(chan error, 1)
+
+	fmt.Println("IPC starting")
+	sockMan, err := core.New("/tmp/simulacrum")
+	if err != nil {
+		return err
+	}
+
+	defer sockMan.Close("/tmp/simulacrum")
+	fmt.Println("IPC started")
+
+	services := []core.Service{}
+
+	for _, service := range services {
+		listener, err := sockMan.Create(service.Name())
+		if err != nil {
+			return err
+		}
+
+		go func(s core.Service, listener net.Listener) {
+			errChan <- s.Run(listener)
+		}(service, listener)
+	}
 
 	// wait for termination signal
 	select {
