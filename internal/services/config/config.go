@@ -22,7 +22,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type DnsConfig struct {
+	Enabled       bool   `yaml:"enabled"`
+	BindAddress   string `yaml:"bind_addr"`
+	AnalysisIP    string `yaml:"analysis_ip"`
+	CheckLiveness bool   `yaml:"check_liveness"`
+	UpstreamDNS   string `yaml:"upstream_dns"`
+	SpoofNetwork  bool   `yaml:"spoof_network"`
+	DefaultSubnet string `yaml:"default_subnet"`
+}
+
 type Config struct {
+	DNS DnsConfig `yaml:"dns"`
 }
 
 func Load(path string) (*Config, error) {

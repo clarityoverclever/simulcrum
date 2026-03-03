@@ -55,7 +55,7 @@ func main() {
 
 	sockMan, err := core.New("/tmp/simulacrum")
 	if err != nil {
-		fmt.Printf("failed to create socket manager: %v\n", err)
+		fmt.Printf("Failed to create socket manager: %v\n", err)
 		os.Exit(1)
 	}
 

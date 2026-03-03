@@ -22,6 +22,7 @@ import (
 	"os/signal"
 	"simulacrum/internal/core"
 	"simulacrum/internal/services/config"
+	"simulacrum/internal/services/dns"
 	"simulacrum/internal/services/logger"
 	"syscall"
 )
@@ -68,7 +69,17 @@ func run(cfg *config.Config, quit <-chan os.Signal) error {
 	defer sockMan.Close("/tmp/simulacrum")
 	fmt.Println("IPC started")
 
-	services := []core.Service{}
+	services := []core.Service{
+		dns.Init(dns.Config{
+			Enabled:       cfg.DNS.Enabled,
+			BindAddress:   cfg.DNS.BindAddress,
+			AnalysisIP:    cfg.DNS.AnalysisIP,
+			CheckLiveness: cfg.DNS.CheckLiveness,
+			UpstreamDNS:   cfg.DNS.UpstreamDNS,
+			SpoofNetwork:  cfg.DNS.SpoofNetwork,
+			DefaultSubnet: cfg.DNS.DefaultSubnet,
+		}),
+	}
 
 	for _, service := range services {
 		listener, err := sockMan.Create(service.Name())
