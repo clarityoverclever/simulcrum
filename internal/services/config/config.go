@@ -32,8 +32,16 @@ type DnsConfig struct {
 	DefaultSubnet string `yaml:"default_subnet"`
 }
 
+type HttpConfig struct {
+	Enabled      bool   `yaml:"enabled"`
+	BindAddress  string `yaml:"bind_addr"`
+	LogHeaders   bool   `yaml:"log_headers"`
+	SpoofPayload bool   `yaml:"spoof_payload"`
+}
+
 type Config struct {
-	DNS DnsConfig `yaml:"dns"`
+	DNS  DnsConfig  `yaml:"dns"`
+	HTTP HttpConfig `yaml:"http"`
 }
 
 func Load(path string) (*Config, error) {

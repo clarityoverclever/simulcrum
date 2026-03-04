@@ -54,7 +54,7 @@ type Config struct {
 func New(cfg Config) (*Server, error) {
 	ip := net.ParseIP(cfg.AnalysisIP)
 	if ip == nil {
-		return nil, fmt.Errorf("[dns] invalid analysis IP address: %s", cfg.AnalysisIP)
+		return nil, fmt.Errorf("invalid analysis IP address: %s", cfg.AnalysisIP)
 	}
 
 	var pool *ippool.Pool
@@ -63,7 +63,7 @@ func New(cfg Config) (*Server, error) {
 		var err error
 		pool, err = ippool.New(cfg.DefaultSubnet)
 		if err != nil {
-			return nil, fmt.Errorf("[dns] invalid default subnet: %w", err)
+			return nil, fmt.Errorf("invalid default subnet: %w", err)
 		}
 	}
 
@@ -80,7 +80,7 @@ func New(cfg Config) (*Server, error) {
 
 	// validate upstream DNS if liveness check is enabled
 	if server.checkLiveness && server.upstreamDNS == "" {
-		return nil, fmt.Errorf("[dns] upstream DNS required for liveness check")
+		return nil, fmt.Errorf("upstream DNS required for liveness check")
 	}
 
 	return server, nil
@@ -94,7 +94,7 @@ func (s *Server) Start() error {
 	fmt.Fprintf(os.Stdout, "[dns] listening on: %s\n", s.bindAddress)
 
 	if err := s.dnsServer.ListenAndServe(); err != nil {
-		return fmt.Errorf("[dns] failed to open listener: %w", err)
+		return fmt.Errorf("failed to open listener: %w", err)
 	}
 	return nil
 }

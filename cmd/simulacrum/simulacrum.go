@@ -23,6 +23,7 @@ import (
 	"simulacrum/internal/core"
 	"simulacrum/internal/services/config"
 	"simulacrum/internal/services/dns"
+	"simulacrum/internal/services/http"
 	"simulacrum/internal/services/logger"
 	"syscall"
 )
@@ -58,7 +59,7 @@ func main() {
 
 func run(cfg *config.Config, quit <-chan os.Signal) error {
 	var err error
-	errChan := make(chan error, 2)
+	errChan := make(chan error, 3)
 
 	fmt.Println("[ipc] initializing service")
 	sockMan, err := core.New("/tmp/simulacrum")
@@ -78,6 +79,13 @@ func run(cfg *config.Config, quit <-chan os.Signal) error {
 			UpstreamDNS:   cfg.DNS.UpstreamDNS,
 			SpoofNetwork:  cfg.DNS.SpoofNetwork,
 			DefaultSubnet: cfg.DNS.DefaultSubnet,
+		}),
+
+		http.Init(http.Config{
+			Enabled:      cfg.HTTP.Enabled,
+			BindAddress:  cfg.HTTP.BindAddress,
+			LogHeaders:   cfg.HTTP.LogHeaders,
+			SpoofPayload: cfg.HTTP.SpoofPayload,
 		}),
 	}
 

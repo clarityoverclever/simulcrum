@@ -15,6 +15,7 @@
 
 # Go workspace file
 go.work
+/internal/services/template/
 
 # Dependency directories
 vendor/

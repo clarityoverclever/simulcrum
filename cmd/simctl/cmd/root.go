@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"simulacrum/cmd/simctl/cmd/http"
 
 	"simulacrum/cmd/simctl/cmd/dns"
 
@@ -23,4 +24,5 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(dns.DnsCmd)
+	rootCmd.AddCommand(http.HttpCmd)
 }
