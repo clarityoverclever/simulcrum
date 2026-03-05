@@ -137,16 +137,7 @@ func (s *Server) serveFile(w http.ResponseWriter, fileName string, fileType stri
 			return
 		}
 		w.Write(agent)
-	case ".dll":
-		w.Header().Set("Content-Type", contentType)
-
-		// generate a payload with random binary data and an exe header
-		size := 1024*1024 + rand.Intn(4*1024*1024)
-		w.Write([]byte("MZ"))
-		size -= 2
-
-		io.CopyN(w, rand.New(rand.NewSource(time.Now().UnixNano())), int64(size))
-	case ".dat": // binary data
+	case ".dat", ".dll": // binary data
 		w.Header().Set("Content-Type", contentType)
 
 		// generate a payload with random binary data
