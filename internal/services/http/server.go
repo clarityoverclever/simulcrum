@@ -113,15 +113,18 @@ func (s *Server) serveFile(w http.ResponseWriter, fileName string, fileType stri
 	logger.Info("[http] Serving agent payload", "file_type", fileType)
 
 	switch fileType {
-	case ".exe", ".dll": // executable
+	case ".exe":
+		fmt.Println("[http] serving x64 payload")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
 		w.Header().Set("Content-Type", contentType)
 
-		// generate a payload with random binary data and an exe header
-		size := 1024*1024 + rand.Intn(4*1024*1024)
-		w.Write([]byte("MZ"))
-		size -= 2
-
-		io.CopyN(w, rand.New(rand.NewSource(time.Now().UnixNano())), int64(size))
+		// serve x64 payload
+		agent, err := staticDir.ReadFile("static/agent.exe")
+		if err != nil {
+			logger.Error("[http] failed to read agent.exe", "error", err)
+			return
+		}
+		w.Write(agent)
 	case ".ps1":
 		fmt.Println("[http] serving powershell payload")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
@@ -130,10 +133,19 @@ func (s *Server) serveFile(w http.ResponseWriter, fileName string, fileType stri
 		// serve powershell payload
 		agent, err := staticDir.ReadFile("static/agent.ps1")
 		if err != nil {
-			logger.Error("[http] failed to read powershell.ps1", "error", err)
+			logger.Error("[http] failed to read agent.ps1", "error", err)
 			return
 		}
 		w.Write(agent)
+	case ".dll":
+		w.Header().Set("Content-Type", contentType)
+
+		// generate a payload with random binary data and an exe header
+		size := 1024*1024 + rand.Intn(4*1024*1024)
+		w.Write([]byte("MZ"))
+		size -= 2
+
+		io.CopyN(w, rand.New(rand.NewSource(time.Now().UnixNano())), int64(size))
 	case ".dat": // binary data
 		w.Header().Set("Content-Type", contentType)
 

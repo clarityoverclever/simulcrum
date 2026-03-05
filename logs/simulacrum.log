@@ -71,3 +71,7 @@
 {"time":"2026-03-04T14:21:14.073236027-08:00","level":"INFO","msg":"[http] request received","client":"[::1]:46872","host":"localhost:8080","path":"/file.ps1","wildcard_path":"file.ps1","method":"GET"}
 {"time":"2026-03-04T14:21:14.073501212-08:00","level":"INFO","msg":"[http] Serving agent payload","file_type":".ps1"}
 {"time":"2026-03-04T16:32:48.054707735-08:00","level":"ERROR","msg":"[ntp] Error reading from NTP server","error":"read udp [::]:12233: use of closed network connection"}
+{"time":"2026-03-04T18:11:57.435126509-08:00","level":"INFO","msg":"[http] request received","client":"[::1]:36508","host":"localhost:8080","path":"/","wildcard_path":"","method":"GET"}
+{"time":"2026-03-04T18:11:57.478946026-08:00","level":"INFO","msg":"[http] request received","client":"[::1]:36508","host":"localhost:8080","path":"/favicon.ico","wildcard_path":"favicon.ico","method":"GET"}
+{"time":"2026-03-04T18:12:09.867509905-08:00","level":"INFO","msg":"[http] request received","client":"[::1]:56678","host":"localhost:8080","path":"/file.exe","wildcard_path":"file.exe","method":"GET"}
+{"time":"2026-03-04T18:12:09.867580604-08:00","level":"INFO","msg":"[http] Serving agent payload","file_type":".exe"}

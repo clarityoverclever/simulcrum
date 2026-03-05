@@ -12,6 +12,6 @@ function Send-Heartbeat {
 $TaskID = New-Guid
 
 while ($true) {
-    $null = Send-Heartbeat -Stage 'start of heartbeat test' -TaskID $TaskID
-    Start-Sleep -Seconds 5
+    $null = Send-Heartbeat -Stage '[ps1] heartbeat' -TaskID $TaskID
+    Start-Sleep -Seconds 30
 }
