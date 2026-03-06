@@ -16,6 +16,7 @@
 # Go workspace file
 go.work
 /internal/services/template/
+/cmd/simctl/cmd/template/
 
 # Dependency directories
 vendor/
