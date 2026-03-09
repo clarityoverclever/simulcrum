@@ -21,6 +21,7 @@ Simulacrum aims to provide deterministic network behavior for analysis and testi
 
 ### HTTP
 - Serves HTTP with file service on configurable port
+- Capture POST data into Base64 files for later analysis
 - Optional logging of HTTP request headers
 - Optional spoofed HTTP request payload delivery (ps1, exe)
 
@@ -86,6 +87,9 @@ file: ./config/config.yaml
 - **bind_addr:** `IP:PORT`  
   Address and port simulacrum binds to for serving HTTP traffic.
 
+- **max_body_size:** `int`  
+  Maximum capture size of HTTP POST request bodies in kilobytes.
+
 - **log_headers:** `true | false`  
   Enables logging of HTTP request headers.
 
@@ -117,6 +121,7 @@ http:
   bind_addr: 0.0.0.0:80
   log_headers: false
   spoof_payload: false
+  max_body_size: 64
 ntp:
   enabled: true
   bind_addr: 0.0.0.0:123
