@@ -81,7 +81,10 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	// default serve a 200
 	w.Header().Set("Content-Type", "text/html")
 
-	w.Write([]byte("<!DOCTYPE html><html><head><title>simulacrum</title></head><body bgcolor=\"grey\"><center><h1>OK</h1></center></body></html>"))
+	_, err := w.Write([]byte("<!DOCTYPE html><html><head><title>simulacrum</title></head><body bgcolor=\"grey\"><center><h1>OK</h1></center></body></html>"))
+	if err != nil {
+		logger.Error(fmt.Sprintf("[%s] failed to write response", h.cfg.ServiceName), "error", err)
+	}
 }
 
 func (h *Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +95,11 @@ func (h *Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	var maxBodyBytes = h.cfg.MaxBodyKb * 1024 // convert to bytes for io.LimitReader
 
 	limitReader := io.LimitReader(r.Body, maxBodyBytes+1)
-	data, _ := io.ReadAll(limitReader)
+	data, err := io.ReadAll(limitReader)
+	if err != nil {
+		// logging the read error but processing any data collected for "best effort" result
+		logger.Error(fmt.Sprintf("[%s] failed to read POST body", h.cfg.ServiceName), "error", err)
+	}
 
 	if int64(len(data)) > maxBodyBytes {
 		truncated = true
@@ -122,7 +129,10 @@ func (h *Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, err = w.Write([]byte("OK"))
+	if err != nil {
+		logger.Error(fmt.Sprintf("[%s] failed to write response", h.cfg.ServiceName), "error", err)
+	}
 }
 
 func (h *Handler) ServeFile(w http.ResponseWriter, fileName string, fileType string, contentType string) {
@@ -140,7 +150,11 @@ func (h *Handler) ServeFile(w http.ResponseWriter, fileName string, fileType str
 			logger.Error(fmt.Sprintf("[%s] failed to read agent.exe", h.cfg.ServiceName), "error", err)
 			return
 		}
-		w.Write(agent)
+		_, err = w.Write(agent)
+		if err != nil {
+			logger.Error(fmt.Sprintf("[%s] failed to write agent.exe", h.cfg.ServiceName), "error", err)
+			return
+		}
 	case ".ps1":
 		fmt.Printf("[%s] serving powershell payload\n", h.cfg.ServiceName)
 		w.Header().Set("Content-Disposition", `attachment; filename="`+fileName+`"`)
@@ -152,13 +166,20 @@ func (h *Handler) ServeFile(w http.ResponseWriter, fileName string, fileType str
 			logger.Error(fmt.Sprintf("[%s] failed to read agent.ps1", h.cfg.ServiceName), "error", err)
 			return
 		}
-		w.Write(agent)
+		_, err = w.Write(agent)
+		if err != nil {
+			logger.Error(fmt.Sprintf("[%s] failed to write agent.ps1", h.cfg.ServiceName), "error", err)
+			return
+		}
 	case ".dat", ".dll": // binary data
 		w.Header().Set("Content-Type", contentType)
 
 		// generate a payload with random binary data
 		size := 1024*1024 + rand.Intn(4*1024*1024)
-		io.CopyN(w, rand.New(rand.NewSource(time.Now().UnixNano())), int64(size))
+		_, err := io.CopyN(w, rand.New(rand.NewSource(time.Now().UnixNano())), int64(size))
+		if err != nil {
+			logger.Error(fmt.Sprintf("[%s] failed to write random data", h.cfg.ServiceName), "error", err)
+		}
 	default:
 		return
 	}
@@ -200,16 +221,15 @@ func (h *Handler) CapturePostBody(file string, data []byte) error {
 	}
 
 	if _, err = os.Stat(file); err == nil {
-		fmt.Printf("[%s] capture already exists, skipping\n", h.cfg.ServiceName)
+		logger.Info(fmt.Sprintf("[%s] duplicate POST capture skipped", h.cfg.ServiceName), "file", file)
 		return nil
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to stat capture file: %w", err)
+		return fmt.Errorf("[%s] failed to stat capture file: %w", h.cfg.ServiceName, err)
+	} else {
+		err = os.WriteFile(file, data, 0644)
+		if err != nil {
+			return fmt.Errorf("[%s] failed to write capture to file: %w", h.cfg.ServiceName, err)
+		}
 	}
-
-	err = os.WriteFile(file, data, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write capture to file: %w", err)
-	}
-
 	return nil
 }

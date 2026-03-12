@@ -59,7 +59,7 @@ func (s *Server) Start() error {
 
 	fmt.Printf("[%s] listening on %s\n", s.cfg.Handler.ServiceName, s.cfg.BindAddress)
 	if err := s.Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("failed to start server: %w", err)
+		return fmt.Errorf("[%s] failed to start server: %w", s.cfg.Handler.ServiceName, err)
 	}
 
 	return nil
@@ -73,7 +73,7 @@ func (s *Server) Stop() error {
 		defer cancel()
 
 		if err := s.Server.Shutdown(ctx); err != nil {
-			fmt.Println("server shutdown failed:", err)
+			return fmt.Errorf("[%s] failed to stop server: %w", s.cfg.Handler.ServiceName, err)
 		}
 	}
 
