@@ -40,7 +40,6 @@ type HttpConfig struct {
 type HttpsConfig struct {
 	Enabled     bool   `yaml:"enabled"`
 	BindAddress string `yaml:"bind_addr"`
-	CertMode    string `yaml:"cert_mode"`
 }
 
 type CommonWebConfig struct {
@@ -55,10 +54,10 @@ type NtpConfig struct {
 	Multiplier  float64 `yaml:"multiplier"`
 }
 
-type TlsCertConfig struct {
-	Enabled bool   `yaml:"enabled"`
-	Mode    string `yaml:"mode"`
-	Cache   string `yaml:"cache"`
+type TlsConfig struct {
+	Mode string `yaml:"cert_mode"`
+	Cert string `yaml:"cert_file"`
+	Key  string `yaml:"key_file"`
 }
 
 type Config struct {
@@ -67,7 +66,7 @@ type Config struct {
 	HTTPS     HttpsConfig     `yaml:"https"`
 	CommonWeb CommonWebConfig `yaml:"common_web"`
 	NTP       NtpConfig       `yaml:"ntp"`
-	TLSCerts  TlsCertConfig   `yaml:"tls_cert"`
+	TLS       TlsConfig       `yaml:"tls"`
 }
 
 func Load(path string) (*Config, error) {

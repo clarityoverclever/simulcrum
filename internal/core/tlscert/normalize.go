@@ -12,29 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ca
+package tlscert
 
-type Server struct {
-	cfg Config
-}
+import (
+	"fmt"
+	"net"
+	"strings"
+)
 
-type Config struct {
-	Enabled     bool
-	BindAddress string
-}
+func NormalizeServerName(serverName string) (string, error) {
+	name := strings.TrimSpace(strings.ToLower(serverName))
+	if name == "" {
+		return "", fmt.Errorf("null server name")
+	}
 
-func New(cfg Config) (*Server, error) {
-	return &Server{cfg: cfg}, nil
-}
+	name = strings.TrimSuffix(name, ".")
+	if name == "" {
+		return "", fmt.Errorf("null server name")
+	}
 
-func (s *Server) Start() error {
-	return nil
-}
-
-func (s *Server) Stop() error {
-	return nil
-}
-
-func (s *Server) IssueCertificate(serverName string) (string, error) {
-	return "", nil
+	if ip := net.ParseIP(name); ip != nil {
+		return "", fmt.Errorf("server name cannot be an IP address")
+	}
+	return name, nil
 }

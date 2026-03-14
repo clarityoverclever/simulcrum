@@ -27,6 +27,7 @@ vendor/
 /out/
 /logs/
 /captures/
+/certs/
 
 # IDE
 .idea/

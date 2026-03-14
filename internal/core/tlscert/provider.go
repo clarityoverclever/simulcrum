@@ -12,29 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ca
+package tlscert
 
-type Server struct {
-	cfg Config
+import (
+	"crypto/tls"
+	"fmt"
+)
+
+type CertificateProvider interface {
+	GetCertificate(serverName string) (*tls.Certificate, error)
 }
 
-type Config struct {
-	Enabled     bool
-	BindAddress string
+type Issuer interface {
+	IssueServerCertificate(serverName string) (*tls.Certificate, error)
 }
 
-func New(cfg Config) (*Server, error) {
-	return &Server{cfg: cfg}, nil
+type StaticProvider struct {
+	Certificate *tls.Certificate
 }
 
-func (s *Server) Start() error {
-	return nil
-}
+func (p *StaticProvider) GetCertificate(serverName string) (*tls.Certificate, error) {
+	if p == nil || p.Certificate == nil {
+		return nil, fmt.Errorf("no certificate provided")
+	}
 
-func (s *Server) Stop() error {
-	return nil
-}
-
-func (s *Server) IssueCertificate(serverName string) (string, error) {
-	return "", nil
+	return p.Certificate, nil
 }

@@ -23,6 +23,7 @@ import (
 	"simulacrum/internal/core"
 	"simulacrum/internal/core/config"
 	"simulacrum/internal/core/logger"
+	"simulacrum/internal/core/tlscert"
 	"simulacrum/internal/services/dns"
 	"simulacrum/internal/services/http"
 	"simulacrum/internal/services/https"
@@ -98,12 +99,16 @@ func run(cfg *config.Config, quit <-chan os.Signal) error {
 		https.Init(https.Config{
 			Enabled:     cfg.HTTPS.Enabled,
 			BindAddress: cfg.HTTPS.BindAddress,
-			CertMode:    cfg.HTTPS.CertMode,
 			Handler: web.HandlerConfig{
 				ServiceName:  "https",
 				LogHeaders:   cfg.CommonWeb.LogHeaders,
 				SpoofPayload: cfg.CommonWeb.SpoofPayload,
 				MaxBodyKb:    cfg.CommonWeb.MaxBodyKb,
+			},
+			Tls: tlscert.TLSConfig{
+				Mode: cfg.TLS.Mode,
+				Cert: cfg.TLS.Cert,
+				Key:  cfg.TLS.Key,
 			},
 		}),
 

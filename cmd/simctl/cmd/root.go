@@ -5,6 +5,7 @@ import (
 	"os"
 	"simulacrum/cmd/simctl/cmd/dns"
 	"simulacrum/cmd/simctl/cmd/http"
+	"simulacrum/cmd/simctl/cmd/https"
 	"simulacrum/cmd/simctl/cmd/ntp"
 
 	"github.com/spf13/cobra"
@@ -25,5 +26,6 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(dns.DnsCmd)
 	rootCmd.AddCommand(http.HttpCmd)
+	rootCmd.AddCommand(https.HttpsCmd)
 	rootCmd.AddCommand(ntp.NtpCmd)
 }

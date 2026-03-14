@@ -12,29 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ca
+package tlscert
 
-type Server struct {
-	cfg Config
-}
-
-type Config struct {
-	Enabled     bool
-	BindAddress string
-}
-
-func New(cfg Config) (*Server, error) {
-	return &Server{cfg: cfg}, nil
-}
-
-func (s *Server) Start() error {
-	return nil
-}
-
-func (s *Server) Stop() error {
-	return nil
-}
-
-func (s *Server) IssueCertificate(serverName string) (string, error) {
-	return "", nil
+type TLSConfig struct {
+	Mode string
+	Cert string
+	Key  string
 }
