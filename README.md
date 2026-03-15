@@ -8,22 +8,25 @@ Simulacrum aims to provide deterministic network behavior for analysis and testi
 ---
 
 ## Features
-- supplies configurable servers on a data plane (DNS, HTTP, NTP)
+- supplies configurable servers on a data plane (DNS, HTTP(S), NTP)
 - exposes servers to a control plane for dynamic configuration
 - structured logging for analysis
 - real-time reporting of server behavior
 
 ### DNS
 - Serves DNS on configurable port
-- Rewrites queries to a static IP or upstream DNS server with local DNAT
-- Optional upstream DNS "liveness" checks
+- Rewrites queries to a static IP or upstream DNS server with local DNAT/
+- Optional "liveness" checks against upstream DNS server
 - DNS spoofing using a configurable CIDR subnet
 
-### HTTP
+### HTTP(S)
 - Serves HTTP with file service on configurable port
 - Capture POST data into Base64 files for later analysis
 - Optional logging of HTTP request headers
 - Optional spoofed HTTP request payload delivery (ps1, exe)
+
+### TLS
+- Manages TLS certificates for HTTPS
 
 ### NTP
 - Serves NTP
@@ -87,6 +90,14 @@ file: ./config/config.yaml
 - **bind_addr:** `IP:PORT`  
   Address and port simulacrum binds to for serving HTTP traffic.
 
+### https
+- **enabled:** `true | false`  
+  Controls whether the HTTP server starts at launch.
+
+- **bind_addr:** `IP:PORT`  
+  Address and port simulacrum binds to for serving HTTP traffic.
+
+### common_web:
 - **max_body_kbe:** `int`  
   Maximum capture size of HTTP POST request bodies in kilobytes.
 
@@ -95,6 +106,16 @@ file: ./config/config.yaml
 
 - **spoof_payload:** `true | false`  
   Enables spoofing of HTTP request payloads (ps1, exe, binary.
+
+### tls
+- **cert_mode:** `static`
+  Controls how TLS certificates are managed.
+
+- **cert_file:** `PATH`
+  Path to TLS certificate file.
+
+- **key_file:** `PATH`
+  Path to TLS key file.
 
 ### ntp
 - **enabled:** `true | false`  
@@ -119,9 +140,17 @@ dns:
 http:
   enabled: true
   bind_addr: 0.0.0.0:80
-  log_headers: false
-  spoof_payload: false
+https:
+  enabled: true
+  bind_addr: 0.0.0.0:443
+common_web:
+  log_headers: true
+  spoof_payload: true
   max_body_kb: 64
+tls:
+  cert_mode: static
+  cert_file: ./certs/https.crt
+  key_file: ./certs/https.key
 ntp:
   enabled: true
   bind_addr: 0.0.0.0:123
