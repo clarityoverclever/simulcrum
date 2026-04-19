@@ -19,6 +19,7 @@
 go.work
 /internal/services/template/
 /cmd/simctl/cmd/template
+/cmd/stress
 
 # Dependency directories
 vendor/

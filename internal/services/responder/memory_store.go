@@ -31,6 +31,27 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
+// cloneRecord returns a deep copy of the given record for a vm
+func cloneRecord(record Record) Record {
+	clone := record
+
+	if record.Tags != nil {
+		clone.Tags = make(map[string]struct{}, len(record.Tags))
+		for k, v := range record.Tags {
+			clone.Tags[k] = v
+		}
+	}
+
+	if record.Meta != nil {
+		clone.Meta = make(map[string]string, len(record.Meta))
+		for k, v := range record.Meta {
+			clone.Meta[k] = v
+		}
+	}
+
+	return clone
+}
+
 func (s *MemoryStore) Observe(ctx context.Context, key Key, obs Observation) (Record, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -70,7 +91,7 @@ func (s *MemoryStore) Observe(ctx context.Context, key Key, obs Observation) (Re
 
 	s.records[key] = record
 
-	return record, nil
+	return cloneRecord(record), nil
 }
 
 func (s *MemoryStore) Get(ctx context.Context, key Key) (Record, bool) {
@@ -78,7 +99,7 @@ func (s *MemoryStore) Get(ctx context.Context, key Key) (Record, bool) {
 	defer s.mutex.RUnlock()
 
 	record, ok := s.records[key]
-	return record, ok
+	return cloneRecord(record), ok
 }
 
 func (s *MemoryStore) GetOrCreate(ctx context.Context, key Key) (Record, error) {
@@ -116,7 +137,7 @@ func (s *MemoryStore) UpdateMeta(ctx context.Context, key Key, values map[string
 	}
 
 	s.records[key] = record
-	return record, nil
+	return cloneRecord(record), nil
 }
 
 func (s *MemoryStore) AddTag(ctx context.Context, key Key, tag string) (Record, error) {
@@ -134,7 +155,7 @@ func (s *MemoryStore) AddTag(ctx context.Context, key Key, tag string) (Record, 
 
 	record.Tags[tag] = struct{}{}
 	s.records[key] = record
-	return record, nil
+	return cloneRecord(record), nil
 }
 
 func (s *MemoryStore) RemoveTag(ctx context.Context, key Key, tag string) (Record, error) {
@@ -151,7 +172,7 @@ func (s *MemoryStore) RemoveTag(ctx context.Context, key Key, tag string) (Recor
 	}
 
 	s.records[key] = record
-	return record, nil
+	return cloneRecord(record), nil
 }
 
 func (s *MemoryStore) MarkSeen(ctx context.Context, key Key, at time.Time) (Record, error) {
@@ -169,7 +190,7 @@ func (s *MemoryStore) MarkSeen(ctx context.Context, key Key, at time.Time) (Reco
 	record.LastSeen = at
 
 	s.records[key] = record
-	return record, nil
+	return cloneRecord(record), nil
 }
 
 func (s *MemoryStore) Delete(ctx context.Context, key Key) error {
