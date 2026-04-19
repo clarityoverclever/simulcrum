@@ -611,10 +611,15 @@ func (s *Server) handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 // writeDNSResponse writes a supplied DNS response to the client
 func (s *Server) writeDNSResponse(w dns.ResponseWriter, msg *dns.Msg) error {
-	if err := w.WriteMsg(msg); err != nil {
-		_, err = fmt.Fprintf(os.Stderr, "dns write failure: %v\n", err)
-		if err != nil {
-			return err
+	if msg == nil {
+		msg = new(dns.Msg)
+		msg.SetRcode(msg, dns.RcodeServerFailure)
+	}
+
+	if writeErr := w.WriteMsg(msg); writeErr != nil {
+		_, writeErr = fmt.Fprintf(os.Stderr, "dns write failure: %v\n", writeErr)
+		if writeErr != nil {
+			return writeErr
 		}
 	}
 	return nil

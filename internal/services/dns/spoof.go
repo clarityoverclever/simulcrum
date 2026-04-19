@@ -50,7 +50,7 @@ func (s *Server) handleSpoofRequest(ctx context.Context, r responder.Response, i
 		msg.SetRcode(msg, dns.RcodeNameError)
 	}
 
-	return nil
+	return msg.SetRcode(msg, dns.RcodeServerFailure)
 }
 
 // header returns a DNS header with a supplied name, type, and TTL
